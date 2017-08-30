@@ -29,47 +29,61 @@ class CalculateCurveLength() :
         obj = context.object
         # row = self.layout.row()
 
-        theCol.label(text="Active object is: " + obj.name)
+        # theCol.label(text="Active object is: " + obj.name)
 
-        if obj.type == 'CURVE' and context.active_object.select:
-           theCol.label(text="Length: " + context.window_manager.clipboard)
-           theCol.operator("calclen.perform", text = "Update Length")
+        # if obj.type == 'CURVE' and context.active_object.select:
+        #    theCol.label(text="Length: " + context.window_manager.clipboard)
+        theCol.operator("calclen.perform", text = "Print to Console")
 
     #end draw
  
 #end CalculateCurveLength
 
-def get_length(context):
+def get_length(context, curve):
 
     obj_name_original = context.active_object.name
+
+    context.scene.objects.active = context.scene.objects[curve.name]
+    context.object.select = True
+
     bpy.ops.object.duplicate_move()
        
     # the duplicate is active, apply all transforms to get global coordinates
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     
-    context.active_object.data.bevel_object = None
+    # print("name: " + curve.name)
 
-    # convert to mesh
-    bpy.ops.object.convert(target='MESH', keep_original=False)
+    if context.active_object:
+        context.active_object.data.bevel_object = None
 
-    _data = context.active_object.data
-    
-    edge_length = 0
-    for edge in _data.edges:
-        vert0 = _data.vertices[edge.vertices[0]].co
-        vert1 = _data.vertices[edge.vertices[1]].co
-        edge_length += (vert0-vert1).length
-    
-    # deal with trailing float smear
-    edge_length = '{:.6f}'.format(edge_length)
-    print(edge_length)
-    
-    # stick into clipboard
-    context.window_manager.clipboard = edge_length
+        # convert to mesh
+        bpy.ops.object.convert(target='MESH', keep_original=False)
+
+        _data = context.active_object.data
+        
+        edge_length = 0
+        for edge in _data.edges:
+            vert0 = _data.vertices[edge.vertices[0]].co
+            vert1 = _data.vertices[edge.vertices[1]].co
+            edge_length += (vert0-vert1).length
+        
+        # deal with trailing float smear
+        edge_length = '{:.3f}'.format(edge_length)
+        print(curve.name + ":  " + edge_length)
+        
+        # stick into clipboard
+        context.window_manager.clipboard = edge_length
     
     bpy.ops.object.delete()
     context.scene.objects.active = context.scene.objects[obj_name_original]
     context.object.select = True
+
+def get_curve_lengths(context):
+    curves = [o for o in bpy.data.objects if o.type == 'CURVE']
+
+    for curveObj in curves:
+        # print("name: " + curveObj.name)
+        get_length(context, curveObj)
 
 class CalculateCurveLengthPanelObject(bpy.types.Panel, CalculateCurveLength) :
     bl_context = "objectmode"
@@ -79,7 +93,8 @@ class PerformCalculation(bpy.types.Operator) :
     bl_label = "Calc Length"
  
     def invoke(self, context, event) :
-        get_length(context)
+        get_curve_lengths(context)
+        # get_length(context)
         return {"FINISHED"}
     
 
